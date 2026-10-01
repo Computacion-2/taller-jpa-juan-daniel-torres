@@ -106,7 +106,7 @@ Hibernate está configurado con `ddl-auto=validate`: no crea tablas, solo verifi
 ## Cómo ejecutar
 
 ```bash
-git clone <URL-del-repositorio>
+git clone https://github.com/Computacion-2/taller-jpa-juan-daniel-torres.git
 cd taller-jpa-juan-daniel-torres
 ./mvnw spring-boot:run
 ```
@@ -199,27 +199,47 @@ xdg-open target/site/jacoco/index.html  # Linux
 
 ## Despliegue en IAsLab
 
-1. Conectarse al equipo asignado:
-   ```bash
-   ssh <usuario>@<ip-del-equipo>
-   ```
-2. Verificar Java 17: `java -version`.
-3. Clonar y empaquetar:
-   ```bash
-   git clone <URL-del-repositorio>
-   cd taller-jpa-juan-daniel-torres
-   ./mvnw clean package
-   ```
-4. Ejecutar en segundo plano:
-   ```bash
-   nohup java -jar target/demo-0.0.1-SNAPSHOT.jar > app.log 2>&1 &
-   ```
-5. Verificar:
-   - Log: `tail -f app.log`, que debe mostrar `Started DemoApplication`.
-   - Consola: `http://<ip-del-equipo>:8080/h2-console`
-6. Detener: `pkill -f demo-0.0.1-SNAPSHOT.jar`
+La aplicación se desplegó en un equipo de la sala IAsLab (Linux, OpenJDK 17.0.20, Git 2.43).
 
-**Equipo de despliegue:** `<nombre/IP del equipo IAsLab>`
+**Equipo de despliegue:** IAsLab, IP `192.168.131.78`
+**Consola H2 (desde la red del laboratorio):** `http://192.168.131.78:8080/h2-console`
+
+### Pasos realizados en el equipo
+
+1. Verificar herramientas:
+   ```bash
+   java -version
+   git --version
+   ```
+2. Clonar el repositorio (autenticación con *personal access token* de GitHub):
+   ```bash
+   git clone https://github.com/Computacion-2/taller-jpa-juan-daniel-torres.git
+   cd taller-jpa-juan-daniel-torres
+   chmod +x mvnw
+   ```
+3. Compilar, ejecutar los tests y validar la cobertura:
+   ```bash
+   ./mvnw clean verify
+   ```
+   Resultado esperado: `Tests run: 76, Failures: 0`, `All coverage checks have been met.` y `BUILD SUCCESS`.
+4. Ejecutar la aplicación habilitando el acceso remoto a la consola H2:
+   ```bash
+   java -jar target/demo-0.0.1-SNAPSHOT.jar --spring.h2.console.settings.web-allow-others=true
+   ```
+   Para dejarla en segundo plano:
+   ```bash
+   nohup java -jar target/demo-0.0.1-SNAPSHOT.jar --spring.h2.console.settings.web-allow-others=true > app.log 2>&1 &
+   tail -f app.log
+   ```
+   Debe aparecer `Started DemoApplication`.
+5. Obtener la IP del equipo con `hostname -I`. El equipo tiene varias interfaces; la que comparte red con los demás equipos del laboratorio es `192.168.131.78`. Las IP `172.x.x.x` son redes internas de Docker y no sirven.
+6. Verificar desde otro equipo de la misma red, en `http://192.168.131.78:8080/h2-console`, con estos datos:
+   - **JDBC URL:** `jdbc:h2:mem:tiendadb`
+   - **User Name:** `sa`
+   - **Password:** (vacío)
+7. Detener la aplicación con `Ctrl+C`, o con `pkill -f demo-0.0.1-SNAPSHOT.jar` si se dejó en segundo plano.
+
+> `web-allow-others` se pasa como argumento y no en `application.properties`, para que por defecto la consola H2 solo acepte conexiones locales.
 
 ---
 
