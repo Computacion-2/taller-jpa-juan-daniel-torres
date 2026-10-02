@@ -4,27 +4,27 @@
 **Estudiante:** Juan Daniel Torres
 **Docentes:** Kevin Rodríguez
 
-Backend en Spring Boot que usa Hibernate a través de Spring Data JPA para gestionar una tienda:
-usuarios con roles y permisos, categorías, productos y pedidos.
+Este es el backend de una tienda hecho con Spring Boot. Usa Spring Data JPA (con Hibernate por debajo) para guardar y leer todo de la base de datos: usuarios con sus roles y permisos, categorías, productos y pedidos.
 
 ---
 
-## Tecnologías
+## Con qué está hecho
 
 | Herramienta | Versión |
 |---|---|
 | Java | 17 |
-| Spring Boot | 4.0.8 |
-| Spring Data JPA / Hibernate | incluido en Spring Boot |
-| H2 Database (en memoria) | incluido en Spring Boot |
-| Lombok | incluido en Spring Boot |
-| JUnit 5 / Mockito | incluido en `spring-boot-starter-test` |
+| Spring Boot | 4.1.1 |
+| Hibernate (vía Spring Data JPA) | 7.4.5 |
+| Base de datos H2 (en memoria) | 2.4.240 |
+| Lombok | 1.18.46 |
+| JUnit (Jupiter) | 6.0.3 |
+| Mockito | 5.23.0 |
 | JaCoCo | 0.8.15 |
-| Maven | wrapper incluido (`./mvnw`) |
+| Maven | viene incluido en el proyecto (`./mvnw`) |
 
 ---
 
-## Modelo de datos
+## El modelo
 
 ```mermaid
 erDiagram
@@ -36,56 +36,60 @@ erDiagram
     CATEGORIES ||--o{ PRODUCTS : "agrupa"
 ```
 
-| Entidad | Tabla | Relaciones |
-|---|---|---|
-| `Permission` | `permissions` | N–M con `Role` (unidireccional desde `Role`) |
-| `Role` | `roles` | N–M con `Permission` mediante `role_permissions` |
-| `User` | `users` | N–M con `Role` mediante `user_roles`; 1–N con `Order` |
-| `Category` | `categories` | 1–N con `Product` |
-| `Product` | `products` | N–1 con `Category` |
-| `Order` | `orders` | N–1 con `User`; 1–N con `OrderItem` (cascade) |
-| `OrderItem` | `order_items` | N–1 con `Order` y N–1 con `Product` |
+Son 7 entidades:
 
-### Reglas de negocio
-- **No existen usuarios sin rol:** `UserService` exige al menos un rol al crear o actualizar, y no permite quitar el último rol.
-- **No existen roles sin permisos:** `RoleService` exige al menos un permiso al crear o actualizar, y no permite quitar el último permiso.
-- **Eliminar un rol** se rechaza si deja a algún usuario sin roles.
-- **Eliminar un permiso** se rechaza si deja a algún rol sin permisos.
-- **Eliminar un usuario** se rechaza si tiene pedidos registrados.
-- `username`, `email` y los nombres de rol y permiso son únicos.
+| Entidad | Tabla | Con quién se relaciona |
+|---|---|---|
+| `Permission` | `permissions` | Con `Role`. La relación la maneja `Role`. |
+| `Role` | `roles` | Tiene muchos permisos, y un permiso puede estar en muchos roles (tabla `role_permissions`). |
+| `User` | `users` | Tiene muchos roles (tabla `user_roles`) y muchos pedidos. |
+| `Category` | `categories` | Agrupa muchos productos. |
+| `Product` | `products` | Pertenece a una categoría. |
+| `Order` | `orders` | Es de un usuario y tiene varios ítems. Si guardas o borras el pedido, sus ítems van con él. |
+| `OrderItem` | `order_items` | Apunta a su pedido y a su producto. |
+
+### Reglas que siempre se cumplen
+- **Ningún usuario se queda sin rol.** No puedes crear un usuario sin rol ni quitarle su último rol.
+- **Ningún rol se queda sin permisos.** No puedes crear un rol sin permisos ni quitarle su último permiso.
+- **No puedes borrar un rol** si algún usuario se quedaría sin roles por eso.
+- **No puedes borrar un permiso** si algún rol se quedaría sin permisos por eso.
+- **No puedes borrar un usuario** que tenga pedidos.
+- No se repiten el `username`, el `email` ni los nombres de roles y permisos.
 
 ---
 
-## Estructura del proyecto
+## Cómo está organizado
 
 ```
 src/main/java/com/example/demo/
-├── model/          Entidades JPA (7)
-├── repository/     Repositorios Spring Data (uno por entidad)
-└── service/        Interfaces de servicio (User, Role, Permission)
-    └── impl/       Implementaciones con las reglas de negocio
+├── model/          Las 7 entidades
+├── repository/     Un repositorio por entidad
+└── service/        Servicios de User, Role y Permission
+    └── impl/       Aquí están las reglas de arriba
 src/main/resources/
-├── application.properties   Configuración (H2, JPA, scripts)
-├── schema.sql               Creación del esquema
-└── data.sql                 Carga de datos iniciales
+├── application.properties   Configuración (H2, JPA y scripts)
+├── schema.sql               Crea las tablas
+└── data.sql                 Mete los datos de ejemplo
 src/test/java/com/example/demo/service/impl/
-                             Tests unitarios con JUnit 5 y Mockito
+                             Las pruebas de los servicios
 ```
 
 ---
 
-## Esquema y datos iniciales
+## Las tablas y los datos de ejemplo
 
-Al arrancar, Spring ejecuta automáticamente:
-1. **`schema.sql`**: borra y crea las 9 tablas con sus claves primarias, foráneas y restricciones `UNIQUE` y `NOT NULL`.
-2. **`data.sql`**: inserta los datos de prueba.
+Cada vez que arranca la app, Spring corre dos scripts:
+1. **`schema.sql`**: borra y vuelve a crear las 9 tablas, con sus llaves y restricciones.
+2. **`data.sql`**: llena las tablas con datos de ejemplo.
 
-Hibernate está configurado con `ddl-auto=validate`: no crea tablas, solo verifica que las entidades coincidan con el esquema del script.
+Hibernate está en modo `validate`: no crea tablas por su cuenta, solo revisa que las entidades cuadren con lo que crearon los scripts. Si algo no cuadra, la app no arranca.
 
-| Tabla | Registros |
+Esto es lo que queda cargado:
+
+| Tabla | Filas |
 |---|---|
 | permissions | 8 |
-| roles | 3 (ADMIN, SELLER, CUSTOMER) |
+| roles | 3 (ADMIN, SELLER y CUSTOMER) |
 | role_permissions | 15 |
 | users | 5 |
 | user_roles | 6 |
@@ -96,46 +100,46 @@ Hibernate está configurado con `ddl-auto=validate`: no crea tablas, solo verifi
 
 ---
 
-## Requisitos
+## Qué necesitas
 
-- **Java 17** o superior. Se comprueba con `java -version`.
-- No hace falta instalar Maven ni una base de datos: el proyecto trae el Maven Wrapper y usa H2 en memoria.
+- **Java 17 o más nuevo.** Revisa tu versión con `java -version`.
+- Nada más: Maven viene con el proyecto y la base de datos es H2 en memoria, así que no hay que instalar ninguno de los dos.
 
 ---
 
-## Cómo ejecutar
+## Cómo correrlo
 
 ```bash
-git clone <URL-del-repositorio>
+git clone https://github.com/Computacion-2/taller-jpa-juan-daniel-torres.git
 cd taller-jpa-juan-daniel-torres
 ./mvnw spring-boot:run
 ```
 
-La aplicación arranca en `http://localhost:8080`.
+La app queda corriendo en `http://localhost:8080`.
 
-### Consultar la base de datos (consola H2)
+### Ver la base de datos
 
-1. Abrir `http://localhost:8080/h2-console`.
-2. Ingresar estos datos:
-   - **JDBC URL:** `jdbc:h2:mem:tiendadb`
+1. Entra a `http://localhost:8080/h2-console`.
+2. Llena así:
+   - **JDBC URL:** `jdbc:h2:mem:tiendadb` (ojo, por defecto viene otra)
    - **User Name:** `sa`
-   - **Password:** (vacío)
-3. Ejemplos de consultas:
+   - **Password:** déjalo vacío
+3. Prueba estas consultas:
 
 ```sql
--- Usuarios con sus roles
+-- Cada usuario con sus roles
 SELECT u.username, r.name AS rol
 FROM users u
 JOIN user_roles ur ON ur.user_id = u.id
 JOIN roles r ON r.id = ur.role_id;
 
--- Permisos de cada rol
+-- Los permisos de cada rol
 SELECT r.name AS rol, p.name AS permiso
 FROM roles r
 JOIN role_permissions rp ON rp.role_id = r.id
 JOIN permissions p ON p.id = rp.permission_id;
 
--- Pedidos con sus ítems
+-- Los pedidos con lo que se compró
 SELECT o.id, u.username, p.name, i.quantity, i.unit_price
 FROM orders o
 JOIN users u ON u.id = o.user_id
@@ -143,7 +147,7 @@ JOIN order_items i ON i.order_id = o.id
 JOIN products p ON p.id = i.product_id;
 ```
 
-### Generar y ejecutar el JAR
+### Correrlo como JAR
 
 ```bash
 ./mvnw clean package
@@ -154,38 +158,38 @@ java -jar target/demo-0.0.1-SNAPSHOT.jar
 
 ## Pruebas
 
-### Ejecutar todos los tests
+Para correrlas todas:
 ```bash
 ./mvnw test
 ```
-Resultado esperado: **76 tests, 0 fallos**.
+Deberían pasar las **76, sin ningún fallo**.
 
-| Clase de prueba | Tests | Qué cubre |
+| Clase | Pruebas | Qué revisa |
 |---|---|---|
-| `PermissionServiceImplTest` | 19 | Consulta, inserción, actualización y eliminación; nombre duplicado; no dejar roles sin permisos |
-| `RoleServiceImplTest` | 26 | CRUD; asignar y quitar permisos; no crear roles sin permisos; no dejar usuarios sin rol |
-| `UserServiceImplTest` | 30 | CRUD; username y email duplicados; contraseña; asignar y quitar roles; no crear usuarios sin rol |
-| `DemoApplicationTests` | 1 | El contexto de Spring carga con el esquema y los datos |
+| `PermissionServiceImplTest` | 19 | Buscar, crear, editar y borrar permisos; que no se repita el nombre; que ningún rol se quede sin permisos |
+| `RoleServiceImplTest` | 26 | Buscar, crear, editar y borrar roles; agregar y quitar permisos; que ningún rol quede vacío y ningún usuario sin rol |
+| `UserServiceImplTest` | 30 | Buscar, crear, editar y borrar usuarios; username y email repetidos; la contraseña; agregar y quitar roles |
+| `DemoApplicationTests` | 1 | Que la app completa arranque bien con las tablas y los datos |
 
-Los tests de servicios son unitarios: usan **Mockito** para simular los repositorios, así que no dependen de la base de datos.
+Las pruebas de los servicios usan **Mockito**: los repositorios se reemplazan por unos "falsos", así que se prueba solo la lógica, sin tocar la base de datos.
 
-Para ejecutar una sola clase:
+Si quieres correr solo una clase:
 ```bash
 ./mvnw test -Dtest=UserServiceImplTest
 ```
 
 ---
 
-## Cobertura (JaCoCo)
+## Cobertura con JaCoCo
 
 ```bash
 ./mvnw clean verify
-open target/site/jacoco/index.html      # macOS
-xdg-open target/site/jacoco/index.html  # Linux
+open target/site/jacoco/index.html      # en Mac
+xdg-open target/site/jacoco/index.html  # en Linux
 ```
 
-- El reporte se genera en `target/site/jacoco/index.html`.
-- `verify` incluye una **regla que exige 100% de líneas y ramas** en `com.example.demo.service.impl`. Si la cobertura baja, el build falla.
+- El reporte queda en `target/site/jacoco/index.html`.
+- `verify` trae una regla: si los servicios bajan del **100% de líneas y ramas cubiertas**, el build falla. Así no se cuela código sin probar.
 
 | Servicio | Líneas | Ramas |
 |---|---|---|
@@ -199,32 +203,52 @@ xdg-open target/site/jacoco/index.html  # Linux
 
 ## Despliegue en IAsLab
 
-1. Conectarse al equipo asignado:
-   ```bash
-   ssh <usuario>@<ip-del-equipo>
-   ```
-2. Verificar Java 17: `java -version`.
-3. Clonar y empaquetar:
-   ```bash
-   git clone <URL-del-repositorio>
-   cd taller-jpa-juan-daniel-torres
-   ./mvnw clean package
-   ```
-4. Ejecutar en segundo plano:
-   ```bash
-   nohup java -jar target/demo-0.0.1-SNAPSHOT.jar > app.log 2>&1 &
-   ```
-5. Verificar:
-   - Log: `tail -f app.log`, que debe mostrar `Started DemoApplication`.
-   - Consola: `http://<ip-del-equipo>:8080/h2-console`
-6. Detener: `pkill -f demo-0.0.1-SNAPSHOT.jar`
+La app quedó desplegada en un computador de la sala IAsLab (Linux, Java 17.0.20, Git 2.43).
 
-**Equipo de despliegue:** `<nombre/IP del equipo IAsLab>`
+- **IP del equipo:** `192.168.131.78`
+- **Consola H2 desde la red del laboratorio:** `http://192.168.131.78:8080/h2-console`
+
+### Lo que se hizo en ese computador
+
+1. Revisar que estuvieran Java y Git:
+   ```bash
+   java -version
+   git --version
+   ```
+2. Clonar el repo. Como es privado, GitHub pide un *personal access token* en vez de la contraseña.
+   ```bash
+   git clone https://github.com/Computacion-2/taller-jpa-juan-daniel-torres.git
+   cd taller-jpa-juan-daniel-torres
+   chmod +x mvnw
+   ```
+3. Compilar y correr las pruebas con la regla de cobertura:
+   ```bash
+   ./mvnw clean verify
+   ```
+   Al final debe salir `Tests run: 76, Failures: 0`, `All coverage checks have been met.` y `BUILD SUCCESS`.
+4. Arrancar la app dejando que otros equipos entren a la consola H2:
+   ```bash
+   java -jar target/demo-0.0.1-SNAPSHOT.jar --spring.h2.console.settings.web-allow-others=true
+   ```
+   Si la quieres dejar corriendo en segundo plano:
+   ```bash
+   nohup java -jar target/demo-0.0.1-SNAPSHOT.jar --spring.h2.console.settings.web-allow-others=true > app.log 2>&1 &
+   tail -f app.log
+   ```
+   Sabes que arrancó cuando sale `Started DemoApplication`.
+5. Sacar la IP con `hostname -I`. Salen varias. La que sirve es la de la red del laboratorio, `192.168.131.78`; las que empiezan por `172.` son de Docker y no sirven para esto.
+6. Desde otro computador conectado a la misma red, entrar a `http://192.168.131.78:8080/h2-console` con:
+   - **JDBC URL:** `jdbc:h2:mem:tiendadb`
+   - **User Name:** `sa`
+   - **Password:** vacío
+7. Para apagarla: `Ctrl+C`, o `pkill -f demo-0.0.1-SNAPSHOT.jar` si quedó en segundo plano.
+
+> La opción `web-allow-others` se pasa solo al arrancar y no está en `application.properties`. Así, normalmente la consola H2 solo acepta conexiones del mismo computador, que es más seguro.
 
 ---
 
-## Videos
+## Video
 
-- Ejecución y datos iniciales: `<enlace>`
-- Tests y cobertura JaCoCo: `<enlace>`
-- Despliegue en IAsLab: `<enlace>`
+Un solo video recorre todo: el modelo, las tablas y los datos, los servicios, las pruebas con JaCoCo y el despliegue en IAsLab.
+
+- Video del taller: `https://drive.google.com/file/d/1zl8XsSeTNXh5DIcZDToUR3k0N0yP5e3r/view?usp=drive_link`
